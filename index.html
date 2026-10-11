@@ -1,0 +1,751 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="LuminaLens - A modern, privacy-conscious personal photo album and visual catalog with intelligent EXIF metadata extraction and seamless sharing.">
+  <title>LuminaLens | Personal Photo Album & EXIF Studio</title>
+
+  <!-- Typography -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+  <!-- Leaflet CSS for Geolocation Mapping -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+
+  <!-- Application CSS -->
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+  <!-- Main App Container -->
+  <div class="app-container" id="appRoot">
+
+    <!-- Top Navigation Bar -->
+    <header class="top-nav">
+      <div class="brand-section" id="brandHomeBtn">
+        <div class="brand-logo-icon">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/>
+            <circle cx="12" cy="13" r="3"/>
+          </svg>
+        </div>
+        <div>
+          <span class="brand-title">LuminaLens</span>
+        </div>
+        <span class="brand-badge">EXIF Studio</span>
+      </div>
+
+      <!-- Live Search Box -->
+      <div class="search-wrapper">
+        <svg class="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="11" cy="11" r="8"/>
+          <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+        </svg>
+        <input type="text" id="globalSearchInput" class="search-input" placeholder="Search photos, tags, cameras (Sony, Canon), locations..." autocomplete="off">
+      </div>
+
+      <!-- Action Buttons -->
+      <div class="nav-actions">
+        <!-- Live Backend Server Connection Status Badge -->
+        <div id="backendStatusPill" class="backend-status-badge connecting" title="Backend Server Connection Status">
+          <span class="status-pulse-dot"></span>
+          <span id="backendStatusText">Connecting...</span>
+        </div>
+        <button class="btn btn-secondary" id="btnNewAlbum" title="Create a new photo album">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+            <line x1="12" y1="8" x2="12" y2="16"/>
+            <line x1="8" y1="12" x2="16" y2="12"/>
+          </svg>
+          <span>New Album</span>
+        </button>
+
+        <button class="btn btn-primary" id="btnUploadPhotos" title="Upload photos and parse EXIF metadata">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+            <polyline points="17 8 12 3 7 8"/>
+            <line x1="12" y1="3" x2="12" y2="15"/>
+          </svg>
+          <span>Add Photos</span>
+        </button>
+
+        <!-- Auth Sign In Button (Logged Out state) -->
+        <button class="btn btn-secondary" id="btnNavSignIn" title="Sign in to your photography account">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg>
+          <span>Sign In</span>
+        </button>
+
+        <!-- User Profile Dropdown (Logged In state) -->
+        <div class="user-menu-container" id="userMenuContainer" style="display: none;">
+          <button class="user-profile-btn" id="userProfileBtn" aria-haspopup="true" aria-expanded="false" title="Account Menu">
+            <img class="user-avatar" id="userNavAvatar" src="https://api.dicebear.com/7.x/initials/svg?seed=User" alt="Avatar">
+            <span class="user-name" id="userNavName">Photographer</span>
+            <svg class="chevron-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+          </button>
+          
+          <div class="user-dropdown-menu" id="userDropdownMenu">
+            <div class="dropdown-user-header">
+              <img class="dropdown-avatar" id="dropdownUserAvatar" src="https://api.dicebear.com/7.x/initials/svg?seed=User" alt="Avatar">
+              <div class="dropdown-user-details">
+                <div class="dropdown-user-name" id="dropdownUserName">Photographer</div>
+                <div class="dropdown-user-email" id="dropdownUserEmail">user@luminalens.app</div>
+              </div>
+            </div>
+            <div class="dropdown-divider"></div>
+            <div class="dropdown-stats-grid">
+              <div class="dropdown-stat-item">
+                <span class="dropdown-stat-val" id="statMenuPhotos">0</span>
+                <span class="dropdown-stat-lbl">Photos</span>
+              </div>
+              <div class="dropdown-stat-item">
+                <span class="dropdown-stat-val" id="statMenuAlbums">0</span>
+                <span class="dropdown-stat-lbl">Albums</span>
+              </div>
+              <div class="dropdown-stat-item">
+                <span class="dropdown-stat-val" id="statMenuVault">0 MB</span>
+                <span class="dropdown-stat-lbl">Vault</span>
+              </div>
+            </div>
+            <div class="dropdown-divider"></div>
+            <button type="button" class="dropdown-item" id="btnProfileSettings">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+              <span>Account & Stats</span>
+            </button>
+            <button type="button" class="dropdown-item text-danger" id="btnSignOut">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+              <span>Sign Out</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <!-- Main Workspace -->
+    <div class="main-layout">
+      <!-- Sidebar Navigation -->
+      <aside class="sidebar">
+        <div>
+          <div class="sidebar-group-header">Library</div>
+          <ul class="sidebar-nav-list">
+            <li class="sidebar-item active" data-filter="all" id="navAllPhotos">
+              <div class="sidebar-item-content">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+                  <circle cx="8.5" cy="8.5" r="1.5"/>
+                  <polyline points="21 15 16 10 5 21"/>
+                </svg>
+                <span class="sidebar-item-title">All Photos</span>
+              </div>
+              <span class="item-count-badge" id="countAllPhotos">0</span>
+            </li>
+            <li class="sidebar-item" data-filter="favorites" id="navFavorites">
+              <div class="sidebar-item-content">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
+                </svg>
+                <span class="sidebar-item-title">Favorites</span>
+              </div>
+              <span class="item-count-badge" id="countFavorites">0</span>
+            </li>
+            <li class="sidebar-item" data-filter="geotagged" id="navGeotagged">
+              <div class="sidebar-item-content">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/>
+                  <circle cx="12" cy="10" r="3"/>
+                </svg>
+                <span class="sidebar-item-title">Geotagged & Places</span>
+              </div>
+              <span class="item-count-badge" id="countGeotagged">0</span>
+            </li>
+          </ul>
+        </div>
+
+        <!-- Albums List -->
+        <div>
+          <div class="sidebar-group-header">
+            <span>Albums</span>
+            <button class="btn-ghost" id="sidebarAddAlbumBtn" title="Create Album" style="padding: 2px 4px; font-size: 1rem;">+</button>
+          </div>
+          <ul class="sidebar-nav-list" id="sidebarAlbumsList">
+            <!-- Dynamic Album Items -->
+          </ul>
+        </div>
+
+        <!-- Popular Tags Filter Cloud -->
+        <div>
+          <div class="sidebar-group-header">Tags</div>
+          <div class="card-tags-row" id="sidebarTagsCloud" style="padding: 0 0.5rem;">
+            <!-- Dynamic Tags -->
+          </div>
+        </div>
+
+        <!-- Local Storage Status -->
+        <div class="sidebar-storage-card">
+          <div class="storage-header">
+            <span>Local Vault (IndexedDB)</span>
+            <span id="storageUsageText">0 MB</span>
+          </div>
+          <div class="storage-bar-bg">
+            <div class="storage-bar-fill" id="storageBarFill" style="width: 15%;"></div>
+          </div>
+          <p style="font-size: 0.72rem; color: var(--text-dim); margin-top: 0.5rem;">Offline-first persistent catalog</p>
+        </div>
+      </aside>
+
+      <!-- Main Gallery View Area -->
+      <main class="content-area">
+        <!-- Guest Shared Banner (shown only when in shared link mode) -->
+        <div id="guestModeBanner" style="display:none; margin-bottom: 1.5rem; padding: 1rem 1.5rem; background: linear-gradient(135deg, rgba(99, 102, 241, 0.2), rgba(56, 189, 248, 0.2)); border: 1px solid var(--accent-cyan); border-radius: var(--radius-lg); align-items: center; justify-content: space-between;">
+          <div style="display:flex; align-items:center; gap: 0.75rem;">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--accent-cyan)" stroke-width="2">
+              <circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/>
+              <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
+            </svg>
+            <div>
+              <strong style="color: #ffffff;">Shared Album Guest View</strong>
+              <div style="font-size: 0.8rem; color: var(--text-muted);">You are viewing a shared album. Enjoy the curated gallery and high-res slideshow.</div>
+            </div>
+          </div>
+          <button class="btn btn-secondary" id="btnExitGuestMode" style="font-size: 0.8rem; padding: 0.4rem 0.8rem;">Switch to My Studio</button>
+        </div>
+
+        <!-- Dynamic Album Hero Banner -->
+        <section class="album-hero-banner" id="albumHeroBanner">
+          <div class="hero-glow-overlay" id="heroGlow"></div>
+          <div class="hero-meta">
+            <div class="hero-tag" id="heroTag">Collection</div>
+            <h1 class="hero-title" id="heroTitle">All Photos</h1>
+            <p class="hero-desc" id="heroDesc">Full photographic portfolio with detailed EXIF camera diagnostics, geolocation coordinates, and lens metadata.</p>
+            <div class="hero-stats-row">
+              <div class="hero-stat-item">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+                <span class="hero-stat-value" id="heroPhotoCount">0</span> photos
+              </div>
+              <div class="hero-stat-item">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/></svg>
+                <span id="heroCameraBrands">Sony, Canon, Nikon</span>
+              </div>
+              <div class="hero-stat-item" id="heroLocationStat">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+                <span id="heroLocationsCount">Multiple Locations</span>
+              </div>
+            </div>
+          </div>
+          <div class="hero-actions">
+            <button class="btn btn-secondary" id="btnHeroSlideshow" title="Start immersive fullscreen slideshow">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+              <span>Slideshow</span>
+            </button>
+            <button class="btn btn-primary" id="btnHeroShare" title="Share this album with privacy controls">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
+              <span id="btnHeroShareText">Share Album</span>
+            </button>
+            <button class="btn btn-secondary btn-icon" id="btnEditAlbum" title="Edit album metadata" style="display:none;">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+            </button>
+          </div>
+        </section>
+
+        <!-- Filters & Sorting Bar -->
+        <section class="filter-bar">
+          <div class="filter-group-left">
+            <!-- Camera Gear Filter -->
+            <select class="filter-select" id="cameraSelectFilter">
+              <option value="all">All Cameras & Gear</option>
+            </select>
+
+            <!-- Sorting Select -->
+            <select class="filter-select" id="sortSelect">
+              <option value="newest">Sort: Date Added (Newest)</option>
+              <option value="oldest">Sort: Date Added (Oldest)</option>
+              <option value="shotDate">Sort: Capture Date (EXIF)</option>
+              <option value="title">Sort: Title (A-Z)</option>
+              <option value="iso">Sort: High ISO First</option>
+            </select>
+
+            <!-- Quick Filter Badges -->
+            <button class="filter-pill" id="filterPillFavorites">★ Favorites Only</button>
+            <button class="filter-pill" id="filterPillGps">📍 With GPS Map</button>
+          </div>
+
+          <div style="display:flex; align-items:center; gap: 0.75rem;">
+            <div id="photosMatchingCount" style="font-size: 0.82rem; color: var(--text-muted);">Showing 0 photos</div>
+          </div>
+        </section>
+
+        <!-- Dynamic Photo Grid -->
+        <section class="photo-grid" id="photoGalleryGrid">
+          <!-- Photo Cards rendered here -->
+        </section>
+      </main>
+    </div>
+
+    <!-- Lightbox Fullscreen Modal -->
+    <div class="lightbox-modal" id="lightboxModal" role="dialog" aria-modal="true">
+      <div class="lightbox-topbar">
+        <div class="lightbox-info-group">
+          <span class="lightbox-photo-title" id="lightboxTitle">Photo</span>
+          <span class="lightbox-counter" id="lightboxCounter">1 of 1</span>
+        </div>
+        <div class="lightbox-controls">
+          <button class="btn btn-ghost btn-icon" id="lbSlideshowBtn" title="Play Slideshow (Space)">
+            <svg id="lbPlayIcon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+          </button>
+          <button class="btn btn-ghost btn-icon" id="lbFavBtn" title="Toggle Favorite (F)">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+          </button>
+          <button class="btn btn-ghost btn-icon" id="lbDownloadBtn" title="Download Photo">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          </button>
+          <button class="btn btn-secondary" id="lbToggleInfoBtn" title="Toggle EXIF & Map Inspector (I)">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+            <span>Inspector</span>
+          </button>
+          <button class="btn btn-ghost btn-icon" id="lbCloseBtn" title="Close Lightbox (Esc)">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
+        </div>
+      </div>
+
+      <div class="lightbox-stage">
+        <button class="nav-arrow nav-arrow-prev" id="lbPrevBtn" title="Previous Photo (Left Arrow)">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg>
+        </button>
+
+        <div class="lightbox-viewport" id="lightboxViewport">
+          <img id="lightboxMainImg" class="lightbox-img" src="" alt="Enlarged photography view">
+        </div>
+
+        <button class="nav-arrow nav-arrow-next" id="lbNextBtn" title="Next Photo (Right Arrow)">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
+        </button>
+
+        <!-- Slide-out EXIF & Geolocation Drawer -->
+        <div class="lightbox-drawer open" id="lightboxDrawer">
+          <div class="drawer-header">
+            <div class="drawer-title">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--accent-cyan)" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+              <span>EXIF Diagnostics</span>
+            </div>
+            <button class="btn-ghost" id="drawerCloseSubBtn" style="padding: 4px;">✕</button>
+          </div>
+
+          <!-- Camera Badge Card -->
+          <div class="camera-badge-card">
+            <div class="camera-brand" id="drawerCameraBrand">SONY</div>
+            <div class="camera-model-name" id="drawerCameraModel">ILCE-7RM5 (A7R V)</div>
+            <div class="lens-name" id="drawerLensModel">FE 24-70mm F2.8 GM II</div>
+          </div>
+
+          <!-- Exposure Matrix 2x2 -->
+          <div class="exposure-grid">
+            <div class="exposure-cell">
+              <div class="exposure-label">Aperture</div>
+              <div class="exposure-val" id="drawerAperture">f/2.8</div>
+            </div>
+            <div class="exposure-cell">
+              <div class="exposure-label">Shutter</div>
+              <div class="exposure-val" id="drawerShutter">1/125s</div>
+            </div>
+            <div class="exposure-cell">
+              <div class="exposure-label">ISO</div>
+              <div class="exposure-val" id="drawerIso">100</div>
+            </div>
+            <div class="exposure-cell">
+              <div class="exposure-label">Focal Length</div>
+              <div class="exposure-val" id="drawerFocal">50mm</div>
+            </div>
+          </div>
+
+          <!-- Technical Specs Table -->
+          <div class="meta-details-list">
+            <div class="meta-detail-row">
+              <span class="meta-key">Captured On</span>
+              <span class="meta-val" id="drawerCaptureDate">2026-08-14 05:47</span>
+            </div>
+            <div class="meta-detail-row">
+              <span class="meta-key">Dimensions</span>
+              <span class="meta-val" id="drawerDimensions">4000 × 2667 px</span>
+            </div>
+            <div class="meta-detail-row">
+              <span class="meta-key">Exposure Bias</span>
+              <span class="meta-val" id="drawerExposureBias">0.0 EV</span>
+            </div>
+            <div class="meta-detail-row">
+              <span class="meta-key">File Size</span>
+              <span class="meta-val" id="drawerFileSize">4.8 MB</span>
+            </div>
+            <div class="meta-detail-row">
+              <span class="meta-key">Color Profile</span>
+              <span class="meta-val" id="drawerColorSpace">sRGB</span>
+            </div>
+          </div>
+
+          <!-- GPS Location & Leaflet Interactive Map -->
+          <div>
+            <div class="form-label" style="margin-bottom: 0.5rem; display:flex; align-items:center; gap:0.4rem;">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+              <span>Shot Location</span>
+            </div>
+            <div class="gps-map-container" id="gpsMapContainer">
+              <div id="leafletMap"></div>
+            </div>
+            <div class="map-location-tag" id="drawerLocationText">
+              <span>Coordinates available in EXIF</span>
+            </div>
+          </div>
+
+          <!-- Privacy Action -->
+          <div style="background: rgba(255,255,255,0.03); border: 1px solid var(--border-subtle); border-radius: var(--radius-md); padding: 0.85rem; display:flex; flex-direction:column; gap:0.5rem;">
+            <div style="font-size: 0.78rem; font-weight: 600;">Privacy Export</div>
+            <p style="font-size: 0.72rem; color: var(--text-muted);">Export a clean copy of this photo with GPS and camera hardware identifiers stripped.</p>
+            <button class="btn btn-secondary" id="btnExportStrippedPhoto" style="font-size: 0.75rem; padding: 0.4rem 0.6rem;">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+              <span>Download Sanitized Photo</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal: Create / Edit Album -->
+    <div class="modal-overlay" id="albumModal">
+      <div class="modal-dialog">
+        <div class="modal-header">
+          <h2 class="modal-title" id="albumModalTitle">Create Album</h2>
+          <button class="btn-ghost" id="closeAlbumModalBtn">✕</button>
+        </div>
+        <div class="modal-body">
+          <input type="hidden" id="editAlbumId" value="">
+          <div class="form-group">
+            <label class="form-label" for="albumTitleInput">Album Title</label>
+            <input type="text" id="albumTitleInput" class="form-input" placeholder="e.g. Nordic Fjords 2026" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="albumDescInput">Description / Story</label>
+            <textarea id="albumDescInput" class="form-textarea" rows="3" placeholder="Context, location, trip memories..."></textarea>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Theme Accent Color</label>
+            <div class="color-swatches" id="albumColorSwatches">
+              <div class="color-swatch-opt selected" data-color="#38bdf8" style="background: #38bdf8;"></div>
+              <div class="color-swatch-opt" data-color="#6366f1" style="background: #6366f1;"></div>
+              <div class="color-swatch-opt" data-color="#ec4899" style="background: #ec4899;"></div>
+              <div class="color-swatch-opt" data-color="#10b981" style="background: #10b981;"></div>
+              <div class="color-swatch-opt" data-color="#f59e0b" style="background: #f59e0b;"></div>
+              <div class="color-swatch-opt" data-color="#94a3b8" style="background: #94a3b8;"></div>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-danger" id="deleteAlbumModalBtn" style="margin-right: auto; display: none;">Delete Album</button>
+          <button class="btn btn-secondary" id="cancelAlbumModalBtn">Cancel</button>
+          <button class="btn btn-primary" id="saveAlbumBtn">Save Album</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal: Share Album -->
+    <div class="modal-overlay" id="shareModal">
+      <div class="modal-dialog">
+        <div class="modal-header">
+          <h2 class="modal-title">Share Album</h2>
+          <button class="btn-ghost" id="closeShareModalBtn">✕</button>
+        </div>
+        <div class="modal-body">
+          <div>
+            <div style="font-size: 0.88rem; font-weight: 700; margin-bottom: 0.2rem;" id="shareAlbumName">Album Name</div>
+            <p style="font-size: 0.8rem; color: var(--text-muted);">Share this curated collection via unique web link, QR code, or mobile share sheet.</p>
+          </div>
+
+          <!-- Share Link Box -->
+          <div class="share-link-box">
+            <input type="text" class="share-link-input" id="shareUrlDisplay" readonly value="https://luminalens.app/share/sample">
+            <button class="btn btn-primary" id="copyShareLinkBtn" style="padding: 0.4rem 0.8rem; font-size: 0.78rem;">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+              <span>Copy Link</span>
+            </button>
+          </div>
+
+          <!-- Privacy Stripping Toggle -->
+          <div class="privacy-toggle-card">
+            <div>
+              <div class="privacy-title">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--accent-emerald)" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+                <span>Strip GPS Location Metadata</span>
+              </div>
+              <div class="privacy-subtitle">Protects your privacy by masking geographic coordinates for guests.</div>
+            </div>
+            <label class="toggle-switch">
+              <input type="checkbox" id="stripExifShareToggle" checked>
+              <span class="toggle-slider"></span>
+            </label>
+          </div>
+
+          <!-- QR Code Generator Section -->
+          <div style="text-align: center;">
+            <div class="form-label" style="margin-bottom: 0.5rem;">Instant Mobile QR Code</div>
+            <div class="qr-code-section">
+              <canvas id="shareQrCanvas" width="180" height="180"></canvas>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer" style="justify-content: space-between;">
+          <button class="btn btn-secondary" id="previewGuestViewBtn" title="Test the guest experience">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+            <span>Preview Guest View</span>
+          </button>
+          <div style="display:flex; gap: 0.5rem;">
+            <button class="btn btn-secondary" id="nativeShareBtn">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
+              <span>Device Share</span>
+            </button>
+            <button class="btn btn-primary" id="doneShareBtn">Done</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal: Upload Photos & EXIF Extraction -->
+    <div class="modal-overlay" id="uploadModal">
+      <div class="modal-dialog">
+        <div class="modal-header">
+          <h2 class="modal-title">Upload & Ingest Photos</h2>
+          <button class="btn-ghost" id="closeUploadModalBtn">✕</button>
+        </div>
+        <div class="modal-body">
+          <div class="upload-dropzone" id="uploadDropzone">
+            <div class="dropzone-icon">
+              <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                <polyline points="17 8 12 3 7 8"/>
+                <line x1="12" y1="3" x2="12" y2="15"/>
+              </svg>
+            </div>
+            <div style="font-weight: 700; margin-bottom: 0.35rem; font-size: 1.05rem;">Drag & drop your photos here</div>
+            <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 1rem;">Supports JPEG, PNG, WebP with automatic EXIF camera & GPS extraction</p>
+            <button class="btn btn-primary" id="browseFilesBtn">Browse Local Files</button>
+            <input type="file" id="fileInputElement" multiple accept="image/jpeg,image/png,image/webp" style="display:none;">
+          </div>
+
+          <!-- Destination Album Selection -->
+          <div class="form-group" style="margin-top: 1rem;">
+            <label class="form-label" for="uploadTargetAlbumSelect">Add directly to Album (Optional)</label>
+            <select class="filter-select" id="uploadTargetAlbumSelect" style="width: 100%;">
+              <option value="">None (Library only)</option>
+            </select>
+          </div>
+
+          <!-- Progress feedback -->
+          <div class="upload-progress-card" id="uploadProgressCard">
+            <div class="storage-bar-bg">
+              <div class="storage-bar-fill" id="uploadProgressBar" style="width: 0%;"></div>
+            </div>
+            <div class="upload-status-text" id="uploadStatusText">Extracting EXIF tags...</div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-secondary" id="cancelUploadBtn">Close</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal: Add / Assign Photos to Album -->
+    <div class="modal-overlay" id="assignAlbumModal">
+      <div class="modal-dialog">
+        <div class="modal-header">
+          <h2 class="modal-title">Organize into Albums</h2>
+          <button class="btn-ghost" id="closeAssignModalBtn">✕</button>
+        </div>
+        <div class="modal-body">
+          <p style="font-size: 0.85rem; color: var(--text-muted);" id="assignModalSubtitle">Select which albums to include this photo in:</p>
+          <div id="assignAlbumsChecklist" style="display:flex; flex-direction:column; gap:0.6rem; max-height:240px; overflow-y:auto;">
+            <!-- Dynamic album checkboxes -->
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-secondary" id="cancelAssignBtn">Cancel</button>
+          <button class="btn btn-primary" id="saveAssignBtn">Save Assignments</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal: Authentication (Login & Register) -->
+    <div class="modal-overlay" id="authModal">
+      <div class="modal-dialog auth-dialog">
+        <div class="modal-header auth-header">
+          <div class="auth-tabs">
+            <button type="button" class="auth-tab-btn active" id="tabLoginBtn">Sign In</button>
+            <button type="button" class="auth-tab-btn" id="tabRegisterBtn">Create Account</button>
+          </div>
+          <button class="btn-ghost" id="closeAuthModalBtn">✕</button>
+        </div>
+
+        <div class="modal-body auth-body">
+          <!-- Live Error / Warning Banner -->
+          <div class="auth-alert" id="authAlert" style="display: none;"></div>
+
+          <!-- LOGIN VIEW -->
+          <form id="loginForm" class="auth-form" autocomplete="on">
+            <p class="auth-subtext">Sign in to manage your private albums, upload high-res photos, and view camera metadata.</p>
+
+            <div class="form-group">
+              <label class="form-label" for="loginEmail">Email Address</label>
+              <div class="input-icon-wrapper">
+                <svg class="input-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+                <input type="email" id="loginEmail" class="form-input with-icon" placeholder="e.g. demo@luminalens.app" required autocomplete="email">
+              </div>
+            </div>
+
+            <div class="form-group">
+              <div style="display:flex; justify-content:space-between; align-items:center;">
+                <label class="form-label" for="loginPassword">Password</label>
+              </div>
+              <div class="input-icon-wrapper">
+                <svg class="input-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                <input type="password" id="loginPassword" class="form-input with-icon with-action" placeholder="Enter your password" required autocomplete="current-password">
+                <button type="button" class="input-action-btn" id="toggleLoginPasswordBtn" title="Toggle password visibility">
+                  <svg class="eye-icon-open" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                  <svg class="eye-icon-closed" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:none;"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+                </button>
+              </div>
+            </div>
+
+            <!-- Demo Account Quick Fill Button -->
+            <div class="demo-account-box">
+              <span style="font-size: 0.76rem; color: var(--text-muted);">Quick Demo Login:</span>
+              <button type="button" class="btn btn-secondary btn-sm" id="btnFillDemoCreds" style="font-size: 0.74rem; padding: 0.25rem 0.6rem;">
+                demo@luminalens.app / password123
+              </button>
+            </div>
+
+            <button type="submit" class="btn btn-primary auth-submit-btn" id="loginSubmitBtn">
+              <span class="btn-spinner" id="loginSpinner" style="display:none;"></span>
+              <span id="loginBtnText">Sign In to LuminaLens</span>
+            </button>
+          </form>
+
+          <!-- REGISTER VIEW -->
+          <form id="registerForm" class="auth-form" style="display: none;" autocomplete="on">
+            <p class="auth-subtext">Create your personal studio account to safely preserve your photography portfolio.</p>
+
+            <div class="form-group">
+              <label class="form-label" for="registerName">Full Name</label>
+              <div class="input-icon-wrapper">
+                <svg class="input-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                <input type="text" id="registerName" class="form-input with-icon" placeholder="e.g. Alex Rivera" required autocomplete="name">
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label" for="registerEmail">Email Address</label>
+              <div class="input-icon-wrapper">
+                <svg class="input-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+                <input type="email" id="registerEmail" class="form-input with-icon" placeholder="alex@example.com" required autocomplete="email">
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label" for="registerPassword">Password (Minimum 6 characters)</label>
+              <div class="input-icon-wrapper">
+                <svg class="input-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                <input type="password" id="registerPassword" class="form-input with-icon with-action" placeholder="Choose a secure password" required minlength="6" autocomplete="new-password">
+                <button type="button" class="input-action-btn" id="toggleRegisterPasswordBtn" title="Toggle password visibility">
+                  <svg class="eye-icon-open" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                  <svg class="eye-icon-closed" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:none;"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+                </button>
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label" for="registerConfirmPassword">Confirm Password</label>
+              <div class="input-icon-wrapper">
+                <svg class="input-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+                <input type="password" id="registerConfirmPassword" class="form-input with-icon with-action" placeholder="Repeat your password" required minlength="6" autocomplete="new-password">
+                <button type="button" class="input-action-btn" id="toggleRegisterConfirmPasswordBtn" title="Toggle password visibility">
+                  <svg class="eye-icon-open" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                  <svg class="eye-icon-closed" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:none;"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+                </button>
+              </div>
+            </div>
+
+            <button type="submit" class="btn btn-primary auth-submit-btn" id="registerSubmitBtn">
+              <span class="btn-spinner" id="registerSpinner" style="display:none;"></span>
+              <span id="registerBtnText">Create Studio Account</span>
+            </button>
+          </form>
+        </div>
+
+        <div class="modal-footer auth-footer">
+          <div id="authSwitchPrompt" style="font-size: 0.84rem; color: var(--text-muted); text-align: center; width: 100%;">
+            Don't have an account? <a href="#" id="linkSwitchToRegister" style="color: var(--accent-cyan); font-weight: 600; text-decoration: none;">Create one free</a>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal: User Profile & Account Stats -->
+    <div class="modal-overlay" id="profileModal">
+      <div class="modal-dialog">
+        <div class="modal-header">
+          <h2 class="modal-title">My Photography Account</h2>
+          <button class="btn-ghost" id="closeProfileModalBtn">✕</button>
+        </div>
+        <div class="modal-body">
+          <div class="profile-card">
+            <img class="profile-card-avatar" id="profileCardAvatar" src="" alt="Avatar">
+            <div class="profile-card-info">
+              <h3 id="profileCardName" style="font-size: 1.15rem; font-weight: 700;">Photographer</h3>
+              <p id="profileCardEmail" style="font-size: 0.84rem; color: var(--text-muted);">user@luminalens.app</p>
+              <span class="pro-badge">LuminaLens Member</span>
+            </div>
+          </div>
+
+          <div class="account-stats-container">
+            <div class="account-stat-box">
+              <div class="account-stat-num" id="statCardPhotos">0</div>
+              <div class="account-stat-label">Stored Photos</div>
+            </div>
+            <div class="account-stat-box">
+              <div class="account-stat-num" id="statCardAlbums">0</div>
+              <div class="account-stat-label">Photo Albums</div>
+            </div>
+            <div class="account-stat-box">
+              <div class="account-stat-num" id="statCardFavs">0</div>
+              <div class="account-stat-label">Favorites</div>
+            </div>
+            <div class="account-stat-box">
+              <div class="account-stat-num" id="statCardShares">0</div>
+              <div class="account-stat-label">Active Shares</div>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer" style="justify-content: space-between;">
+          <button class="btn btn-danger" id="profileModalLogoutBtn">Sign Out</button>
+          <button class="btn btn-secondary" id="closeProfileModalDoneBtn">Close</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Floating Toast Notifications -->
+    <div class="toast-container" id="toastContainer"></div>
+
+  </div>
+
+  <!-- CDN Scripts with Graceful Fallbacks -->
+  <!-- Leaflet JS for maps -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+  <!-- exifr for high-speed client-side EXIF parsing -->
+  <script src="https://cdn.jsdelivr.net/npm/exifr/dist/full.umd.js"></script>
+
+  <!-- Application Logic Modules -->
+  <script src="qrcode.js"></script>
+  <script src="db.js"></script>
+  <script src="api.js"></script>
+  <script src="exif.js"></script>
+  <script src="sample-data.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
